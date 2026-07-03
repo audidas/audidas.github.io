@@ -9,7 +9,7 @@ const PROFILE = {
   role: "UE5 Game Client Programmer",
   github: "https://github.com/audidas",
   email: "audidas1197@gmail.com",
-  about: "Nest.js·Django/FastAPI 백엔드 5년\nUE5 클라이언트 프로그래밍으로 전환 중",
+  about: "Nest.js·Django/FastAPI 백엔드 5년.\nUE5에서 멀티플레이어 네트워크·세션과 턴제 전투 AI를 구현했습니다.\n서버를 아는 클라이언트 프로그래머입니다.",
 };
 
 const PROJECTS = [
@@ -55,6 +55,29 @@ const PROJECTS = [
     ],
   },
 ];
+
+// Dock 아이콘 — 프로젝트별 SVG 글리프
+const PROJECT_ICONS = {
+  // 몬스터 (보스러쉬)
+  blackout: (
+    <svg viewBox="0 0 24 24" width="26" height="26" fill="#fff">
+      <path fillRule="evenodd" d="M12 2.5c-4.1 0-7.5 3.4-7.5 7.5v9.8l2.5-2 2.5 2 2.5-2 2.5 2 2.5-2 2.5 2V10c0-4.1-3.4-7.5-7.5-7.5zM7.5 10.2l3.4 1.2v1.8l-3.4-1.2v-1.8zm9 0v1.8l-3.4 1.2v-1.8l3.4-1.2z" />
+    </svg>
+  ),
+  // 불꽃
+  b3: (
+    <svg viewBox="0 0 16 16" width="23" height="23" fill="#fff">
+      <path d="M8 16c3.314 0 6-2 6-5.5 0-1.5-.5-4-2.5-6 .25 1.5-1.25 2-1.25 2C11 4 9 .5 6 0c.357 2 .5 4-2 6-1.25 1-2 2.729-2 4.5C2 14 4.686 16 8 16Zm0-1c-1.657 0-3-1-3-2.75 0-.75.25-2 1.25-3C6.125 10 7 10.5 7 10.5c-.375-1.25.5-3.25 2-3.5-.179 1-.25 2 1 3 .625.5 1 1.364 1 2.25C11 14 9.657 15 8 15Z" />
+    </svg>
+  ),
+  // 카드 팬 (덱빌더)
+  console: (
+    <svg viewBox="0 0 24 24" width="25" height="25" fill="#fff">
+      <rect x="4" y="5" width="9" height="13" rx="1.5" opacity="0.45" transform="rotate(-12 8.5 11.5)" />
+      <rect x="10.5" y="5.5" width="9" height="13" rx="1.5" transform="rotate(10 15 12)" />
+    </svg>
+  ),
+};
 
 // ─────────────────────────────────────────────────────────────
 function useClock() {
@@ -313,7 +336,7 @@ export default function App() {
       }}>
         <DockIcon label="소개" char="👤" gradient="linear-gradient(160deg,#5a5a66,#33333c)" onClick={() => openSection("about")} />
         {PROJECTS.map((p) => (
-          <DockIcon key={p.id} label={p.title} char={p.title.replace(/^Project /, "")[0]}
+          <DockIcon key={p.id} label={p.title} char={PROJECT_ICONS[p.id]}
             gradient={`linear-gradient(160deg,${p.accent},${p.accent}99)`}
             onClick={() => openSection(p.id)} />
         ))}
