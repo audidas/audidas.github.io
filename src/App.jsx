@@ -9,7 +9,7 @@ const PROFILE = {
   role: "UE5 Game Client Programmer",
   github: "https://github.com/audidas",
   email: "audidas1197@gmail.com",
-  about: "Nest.js·Django/FastAPI 백엔드 5년.\nUE5에서 멀티플레이어 네트워크·세션과 턴제 전투 AI를 구현했습니다.\n서버를 아는 클라이언트 프로그래머입니다.",
+  about: "서버를 아는 클라이언트 프로그래머\n백엔드 5년에서 언리얼로\n데디케이티드 서버 멀티플레이 TPS의 네트워크, 턴제 전술 RPG의 적 AI",
 };
 
 const PROJECTS = [
