@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(npm run build)",
+      "PowerShell(python \"C:\\\\Users\\\\KGA\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-KGA-Documents-audidas-github-io\\\\a787258b-9f80-412f-a040-e40b4f091135\\\\scratchpad\\\\shot_win.py\" \"C:\\\\Users\\\\KGA\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-KGA-Documents-audidas-github-io\\\\a787258b-9f80-412f-a040-e40b4f091135\\\\scratchpad\")"
+    ]
+  }
+}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // ─────────────────────────────────────────────────────────────
 // 콘텐츠 — 여기만 고치면 됨.
@@ -94,11 +94,11 @@ function useClock() {
   return `${days[now.getDay()]} ${now.getMonth() + 1}월 ${now.getDate()}일 ${ampm} ${h12}:${m}`;
 }
 
-function TrafficLights({ onClose }) {
+function TrafficLights({ onClose, onMin, onMax }) {
   const lights = [
-    { c: "#FF5F57", b: "#E14640", click: onClose },
-    { c: "#FEBC2E", b: "#D89E24" },
-    { c: "#28C840", b: "#1DA82F" },
+    { c: "#FF5F57", b: "#E14640", click: onClose, t: "닫기" },
+    { c: "#FEBC2E", b: "#D89E24", click: onMin, t: "최소화" },
+    { c: "#28C840", b: "#1DA82F", click: onMax, t: "최대화" },
   ];
   return (
     <div style={{ display: "flex", gap: 8 }}>
@@ -107,7 +107,7 @@ function TrafficLights({ onClose }) {
           key={i}
           className="tl"
           onClick={l.click}
-          title={l.click ? "닫기" : undefined}
+          title={l.click ? l.t : undefined}
           style={{
             width: 12, height: 12, borderRadius: "50%",
             background: l.c, border: `0.5px solid ${l.b}`, display: "inline-block",
@@ -139,9 +139,28 @@ export default function App() {
   const [active, setActive] = useState("about");
   const [openPdf, setOpenPdf] = useState(null);
   const [windowOpen, setWindowOpen] = useState(true);
+  const [winMin, setWinMin] = useState(false);
+  const [winMax, setWinMax] = useState(false);
+  const [winPos, setWinPos] = useState({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
+  const dragRef = useRef(null);
   const clock = useClock();
 
-  const openSection = (id) => { setActive(id); setWindowOpen(true); };
+  const openSection = (id) => { setActive(id); setWindowOpen(true); setWinMin(false); };
+
+  // 타이틀바 드래그 — 신호등 클릭은 제외, 최대화 상태에선 비활성
+  const onTitleDown = (e) => {
+    if (winMax || e.target.closest(".tl")) return;
+    dragRef.current = { sx: e.clientX, sy: e.clientY, bx: winPos.x, by: winPos.y };
+    setDragging(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const onTitleMove = (e) => {
+    if (!dragRef.current) return;
+    const d = dragRef.current;
+    setWinPos({ x: d.bx + e.clientX - d.sx, y: d.by + e.clientY - d.sy });
+  };
+  const onTitleUp = () => { dragRef.current = null; setDragging(false); };
 
   useEffect(() => {
     [
@@ -220,11 +239,18 @@ export default function App() {
       }}>
         {windowOpen && (
         <div className="finder-window" style={{
-          width: "100%", maxWidth: 960, height: "100%", maxHeight: 620,
-          display: "flex", borderRadius: 12, overflow: "hidden",
+          width: "100%", maxWidth: winMax ? "100%" : 960, height: "100%", maxHeight: winMax ? "100%" : 620,
+          display: "flex", borderRadius: winMax ? 8 : 12, overflow: "hidden",
           background: "rgba(30,28,38,0.85)", backdropFilter: "blur(30px)",
           border: "0.5px solid rgba(255,255,255,0.12)",
           boxShadow: "0 30px 80px rgba(0,0,0,0.55), 0 0 0 0.5px rgba(255,255,255,0.05)",
+          // 드래그 이동 + 최소화(독으로 빨려 들어가는 느낌) 변환
+          transform: winMin
+            ? `translate(${winPos.x}px, ${winPos.y + 420}px) scale(0.06)`
+            : winMax ? "none" : `translate(${winPos.x}px, ${winPos.y}px)`,
+          opacity: winMin ? 0 : 1,
+          pointerEvents: winMin ? "none" : "auto",
+          transition: dragging ? "none" : "transform .3s cubic-bezier(.2,.8,.3,1), opacity .3s ease",
         }}>
           {/* 사이드바 */}
           <div className="finder-sidebar" style={{
@@ -244,14 +270,23 @@ export default function App() {
 
           {/* 콘텐츠 */}
           <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-            {/* 타이틀바 */}
-            <div style={{
+            {/* 타이틀바 — 드래그 핸들, 더블클릭 시 최대화 토글 */}
+            <div className="win-titlebar"
+              onPointerDown={onTitleDown} onPointerMove={onTitleMove}
+              onPointerUp={onTitleUp} onPointerCancel={onTitleUp}
+              onDoubleClick={(e) => { if (!e.target.closest(".tl")) setWinMax((m) => !m); }}
+              style={{
               height: 40, flexShrink: 0, display: "flex", alignItems: "center",
               padding: "0 16px", gap: 14,
               borderBottom: "0.5px solid rgba(255,255,255,0.08)",
               background: "rgba(255,255,255,0.02)",
+              touchAction: "none", userSelect: "none",
             }}>
-              <TrafficLights onClose={() => setWindowOpen(false)} />
+              <TrafficLights
+                onClose={() => setWindowOpen(false)}
+                onMin={() => setWinMin(true)}
+                onMax={() => setWinMax((m) => !m)}
+              />
               <span style={{ fontSize: 13, fontWeight: 600, color: "#c7c7cc" }}>
                 {active === "about" ? "소개" : active === "contact" ? "연락처" : proj?.title}
               </span>
