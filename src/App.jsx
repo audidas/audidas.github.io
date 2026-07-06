@@ -190,6 +190,9 @@ export default function App() {
       color: "#f5f5f7", position: "relative", overflow: "hidden",
     }}>
       <style>{`
+        /* 섹션 전환 시 새 창이 뜨는 느낌 — translate(드래그 위치)와 충돌하지 않게 scale 단독 속성 사용 */
+        @keyframes winPop { from { scale: .96; opacity: 0; } to { scale: 1; opacity: 1; } }
+        .finder-window { animation: winPop .24s cubic-bezier(.2,.8,.3,1); }
         .tl { transition: filter .15s; }
         .tl:hover { filter: brightness(0.9); }
         .dock-icon { transition: transform .18s cubic-bezier(.2,.8,.3,1.4); }
@@ -239,7 +242,7 @@ export default function App() {
         padding: "36px 20px 120px", minHeight: 0,
       }}>
         {windowOpen && (
-        <div className="finder-window" style={{
+        <div className="finder-window" key={active} style={{
           width: "100%", maxWidth: winMax ? "100%" : 960, height: "100%", maxHeight: winMax ? "100%" : 620,
           display: "flex", borderRadius: winMax ? 8 : 12, overflow: "hidden",
           background: "rgba(30,28,38,0.85)", backdropFilter: "blur(30px)",
