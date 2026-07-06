@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import PDF_PAGES from "./pdfPages.json";
 
 // ─────────────────────────────────────────────────────────────
 // 콘텐츠 — 여기만 고치면 됨.
@@ -345,7 +346,7 @@ export default function App() {
                       };
                       return isPdf ? (
                         <span key={l.label} className="link-row" style={style}
-                          onClick={() => setOpenPdf({ title: proj.title, src: l.href })}>
+                          onClick={() => setOpenPdf({ title: proj.title, src: l.href, id: proj.id })}>
                           {inner}
                         </span>
                       ) : (
@@ -382,7 +383,13 @@ export default function App() {
       </div>
 
       {/* ── PDF 미리보기 창 ── */}
-      {openPdf && <PdfViewer title={openPdf.title} src={openPdf.src} onClose={() => setOpenPdf(null)} />}
+      {openPdf && (
+        <PdfViewer
+          title={openPdf.title} src={openPdf.src}
+          pages={PDF_PAGES[openPdf.id] ?? 0} dir={`/pdf-pages/${openPdf.id}`}
+          onClose={() => setOpenPdf(null)}
+        />
+      )}
     </div>
   );
 }
@@ -393,13 +400,25 @@ const linkRow = {
   display: "inline-flex", gap: 6,
 };
 
-function PdfViewer({ title, src, onClose }) {
+function PdfViewer({ title, src, pages, dir, onClose }) {
+  const [page, setPage] = useState(1);
+
   useEffect(() => {
-    const onKey = (e) => e.key === "Escape" && onClose();
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft") setPage((p) => Math.max(1, p - 1));
+      if (e.key === "ArrowRight") setPage((p) => Math.min(Math.max(pages, 1), p + 1));
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [onClose, pages]);
 
+  // 다음 페이지 미리 로드
+  useEffect(() => {
+    if (page < pages) { const im = new Image(); im.src = `${dir}/${page + 1}.webp`; }
+  }, [page, pages, dir]);
+
+  const hasPages = pages > 0;
   const hasPdf = src && src !== "#";
   const fileName = `${title}.pdf`;
 
@@ -445,6 +464,9 @@ function PdfViewer({ title, src, onClose }) {
           <span style={{ fontSize: 13, fontWeight: 600, color: "#c7c7cc", flex: 1, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {fileName}
           </span>
+          {hasPages && (
+            <span style={{ font: "500 12px/1 var(--mono)", color: "#86868b" }}>{page} / {pages}</span>
+          )}
           {hasPdf && (
             <a href={src} download style={{ fontSize: 13, color: "#3b9dff", textDecoration: "none", fontWeight: 600 }}>
               다운로드
@@ -452,32 +474,59 @@ function PdfViewer({ title, src, onClose }) {
           )}
         </div>
 
-        {/* 본문 */}
-        <div style={{ flex: 1, background: "#2a2833", minHeight: 0 }}>
-          {hasPdf ? (
-            <iframe
-              title={fileName}
-              src={`${src}#toolbar=0&view=FitH`}
-              style={{ width: "100%", height: "100%", border: "none" }}
-            />
+        {/* 본문 — 페이지 이미지 슬라이드 */}
+        <div style={{
+          flex: 1, background: "#2a2833", minHeight: 0, position: "relative",
+          display: "flex", alignItems: "center", justifyContent: "center", padding: 18,
+        }}>
+          {hasPages ? (
+            <>
+              <img
+                src={`${dir}/${page}.webp`} alt={`${title} ${page}쪽`}
+                style={{
+                  maxWidth: "100%", maxHeight: "100%", objectFit: "contain",
+                  borderRadius: 3, boxShadow: "0 8px 30px rgba(0,0,0,0.45)",
+                }}
+              />
+              <NavBtn side="left" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} />
+              <NavBtn side="right" disabled={page >= pages} onClick={() => setPage((p) => Math.min(pages, p + 1))} />
+            </>
           ) : (
             <div style={{
-              height: "100%", display: "flex", flexDirection: "column",
+              display: "flex", flexDirection: "column",
               alignItems: "center", justifyContent: "center", gap: 12,
               color: "#86868b", textAlign: "center", padding: 24,
             }}>
               <div style={{ fontSize: 34 }}>📄</div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: "#c7c7cc" }}>PDF가 아직 연결되지 않았어요</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: "#c7c7cc" }}>페이지 이미지가 아직 없어요</div>
               <div style={{ fontSize: 13, lineHeight: 1.6, maxWidth: 320 }}>
-                <code style={{ font: "500 12px/1 var(--mono)", color: "#a1a1a6" }}>PROJECTS</code>의 해당 링크
-                <code style={{ font: "500 12px/1 var(--mono)", color: "#a1a1a6" }}> href</code>를
-                실제 PDF 경로로 바꾸면 여기에 표시됩니다.
+                <code style={{ font: "500 12px/1 var(--mono)", color: "#a1a1a6" }}>python tools/make_pdf_pages.py</code>를
+                실행하면 생성됩니다.
               </div>
             </div>
           )}
         </div>
       </div>
     </div>
+  );
+}
+
+function NavBtn({ side, disabled, onClick }) {
+  return (
+    <button
+      onClick={onClick} disabled={disabled}
+      aria-label={side === "left" ? "이전 페이지" : "다음 페이지"}
+      style={{
+        position: "absolute", top: "50%", [side]: 14, transform: "translateY(-50%)",
+        width: 36, height: 36, borderRadius: "50%",
+        background: "rgba(20,18,26,0.7)", border: "0.5px solid rgba(255,255,255,0.15)",
+        color: "#f5f5f7", fontSize: 20, lineHeight: 1,
+        cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.25 : 1,
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}
+    >
+      {side === "left" ? "‹" : "›"}
+    </button>
   );
 }
 

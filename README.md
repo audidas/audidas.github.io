@@ -13,5 +13,6 @@
 ## 로컬 실행 · 배포
 
     npm install
-    npm run dev      # 개발 서버
-    .\deploy.ps1     # 빌드 후 gh-pages 배포
+    npm run dev                       # 개발 서버
+    python tools/make_pdf_pages.py    # 덱 PDF 교체 시 페이지 이미지 재생성
+    .\deploy.ps1                      # 빌드 후 gh-pages 배포
