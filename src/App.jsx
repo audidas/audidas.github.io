@@ -137,31 +137,31 @@ function DockIcon({ label, gradient, char, onClick, href }) {
 }
 
 export default function App() {
-  const [active, setActive] = useState("about");
+  const [windows, setWindows] = useState([
+    { id: 1, section: "about", initPos: { x: 0, y: 0 }, min: false, max: false, z: 1 },
+  ]);
   const [openPdf, setOpenPdf] = useState(null);
-  const [windowOpen, setWindowOpen] = useState(true);
-  const [winMin, setWinMin] = useState(false);
-  const [winMax, setWinMax] = useState(false);
-  const [winPos, setWinPos] = useState({ x: 0, y: 0 });
-  const [dragging, setDragging] = useState(false);
-  const dragRef = useRef(null);
+  const zRef = useRef(1);
+  const idRef = useRef(1);
   const clock = useClock();
 
-  const openSection = (id) => { setActive(id); setWindowOpen(true); setWinMin(false); };
-
-  // 타이틀바 드래그 — 신호등 클릭은 제외, 최대화 상태에선 비활성
-  const onTitleDown = (e) => {
-    if (winMax || e.target.closest(".tl")) return;
-    dragRef.current = { sx: e.clientX, sy: e.clientY, bx: winPos.x, by: winPos.y };
-    setDragging(true);
-    e.currentTarget.setPointerCapture(e.pointerId);
+  // 섹션 창이 이미 있으면 맨 앞으로(최소화 해제), 없으면 계단식 위치에 새 창
+  const openSection = (section) => {
+    setWindows((ws) => {
+      const ex = ws.find((w) => w.section === section);
+      if (ex) return ws.map((w) => (w.section === section ? { ...w, min: false, z: ++zRef.current } : w));
+      const n = ws.length;
+      return [...ws, {
+        id: ++idRef.current, section,
+        initPos: { x: (n % 5) * 28, y: (n % 5) * 28 },
+        min: false, max: false, z: ++zRef.current,
+      }];
+    });
   };
-  const onTitleMove = (e) => {
-    if (!dragRef.current) return;
-    const d = dragRef.current;
-    setWinPos({ x: d.bx + e.clientX - d.sx, y: d.by + e.clientY - d.sy });
-  };
-  const onTitleUp = () => { dragRef.current = null; setDragging(false); };
+  const focusWin = (id) => setWindows((ws) => ws.map((w) => (w.id === id ? { ...w, z: ++zRef.current } : w)));
+  const closeWin = (id) => setWindows((ws) => ws.filter((w) => w.id !== id));
+  const minWin = (id) => setWindows((ws) => ws.map((w) => (w.id === id ? { ...w, min: true } : w)));
+  const maxToggleWin = (id) => setWindows((ws) => ws.map((w) => (w.id === id ? { ...w, max: !w.max } : w)));
 
   useEffect(() => {
     [
@@ -177,8 +177,6 @@ export default function App() {
 
   const sans = 'Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
   const mono = '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
-
-  const proj = PROJECTS.find((p) => p.id === active);
 
   return (
     <div style={{
@@ -216,7 +214,7 @@ export default function App() {
         background: "rgba(22,20,30,0.6)", backdropFilter: "blur(20px)",
         borderBottom: "0.5px solid rgba(255,255,255,0.1)",
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "0 14px", fontSize: 13, position: "relative", zIndex: 5,
+        padding: "0 14px", fontSize: 13, position: "relative", zIndex: 2000,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
           <span style={{ fontSize: 15 }}></span>
@@ -236,24 +234,69 @@ export default function App() {
         </div>
       </div>
 
-      {/* ── 데스크톱: Finder 창 ── */}
-      <div style={{
-        flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
-        padding: "36px 20px 120px", minHeight: 0,
-      }}>
-        {windowOpen && (
-        <div className="finder-window" key={active} style={{
-          width: "100%", maxWidth: winMax ? "100%" : 960, height: "100%", maxHeight: winMax ? "100%" : 620,
-          display: "flex", borderRadius: winMax ? 8 : 12, overflow: "hidden",
+      {/* ── 데스크톱: Finder 창들 ── */}
+      <div style={{ flex: 1, position: "relative", minHeight: 0 }}>
+        {windows.map((w) => (
+          <FinderWindow
+            key={w.id} win={w}
+            onFocus={() => focusWin(w.id)}
+            onClose={() => closeWin(w.id)}
+            onMin={() => minWin(w.id)}
+            onMaxToggle={() => maxToggleWin(w.id)}
+            openSection={openSection}
+            onOpenPdf={setOpenPdf}
+          />
+        ))}
+      </div>
+
+      <DockAndOverlays openSection={openSection} openPdf={openPdf} setOpenPdf={setOpenPdf} />
+    </div>
+  );
+}
+
+// 개별 Finder 창 — 자체 드래그 위치를 갖고, 겹침 순서(z)는 App이 관리
+function FinderWindow({ win, onFocus, onClose, onMin, onMaxToggle, openSection, onOpenPdf }) {
+  const [pos, setPos] = useState(win.initPos);
+  const [dragging, setDragging] = useState(false);
+  const dragRef = useRef(null);
+
+  // 타이틀바 드래그 — 신호등 클릭은 제외, 최대화 상태에선 비활성
+  const onTitleDown = (e) => {
+    if (win.max || e.target.closest(".tl")) return;
+    dragRef.current = { sx: e.clientX, sy: e.clientY, bx: pos.x, by: pos.y };
+    setDragging(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const onTitleMove = (e) => {
+    if (!dragRef.current) return;
+    const d = dragRef.current;
+    setPos({ x: d.bx + e.clientX - d.sx, y: d.by + e.clientY - d.sy });
+  };
+  const onTitleUp = () => { dragRef.current = null; setDragging(false); };
+
+  const proj = PROJECTS.find((p) => p.id === win.section);
+  const title = win.section === "about" ? "소개" : win.section === "contact" ? "연락처" : proj?.title;
+
+  return (
+        <div className="finder-window" onPointerDownCapture={onFocus} style={{
+          position: "absolute", zIndex: win.z,
+          display: "flex", overflow: "hidden",
           background: "rgba(30,28,38,0.85)", backdropFilter: "blur(30px)",
           border: "0.5px solid rgba(255,255,255,0.12)",
           boxShadow: "0 30px 80px rgba(0,0,0,0.55), 0 0 0 0.5px rgba(255,255,255,0.05)",
-          // 드래그 이동 + 최소화(독으로 빨려 들어가는 느낌) 변환
-          transform: winMin
-            ? `translate(${winPos.x}px, ${winPos.y + 420}px) scale(0.06)`
-            : winMax ? "none" : `translate(${winPos.x}px, ${winPos.y}px)`,
-          opacity: winMin ? 0 : 1,
-          pointerEvents: winMin ? "none" : "auto",
+          ...(win.max && !win.min
+            ? { left: 20, right: 20, top: 36, bottom: 120, borderRadius: 8, transform: "none" }
+            : {
+                left: "50%", top: "calc(50% - 42px)",
+                width: "min(960px, calc(100% - 40px))", height: "min(620px, calc(100% - 156px))",
+                borderRadius: 12,
+                // 드래그 이동 + 최소화(독으로 빨려 들어가는 느낌) 변환
+                transform: win.min
+                  ? `translate(calc(-50% + ${pos.x}px), calc(-50% + ${pos.y + 420}px)) scale(0.06)`
+                  : `translate(calc(-50% + ${pos.x}px), calc(-50% + ${pos.y}px))`,
+              }),
+          opacity: win.min ? 0 : 1,
+          pointerEvents: win.min ? "none" : "auto",
           transition: dragging ? "none" : "transform .3s cubic-bezier(.2,.8,.3,1), opacity .3s ease",
         }}>
           {/* 사이드바 */}
@@ -264,11 +307,11 @@ export default function App() {
             display: "flex", flexDirection: "column", gap: 4,
           }}>
             <div className="side-label" style={{ fontSize: 11, fontWeight: 700, color: "#86868b", padding: "6px 10px 4px", letterSpacing: "0.02em" }}>즐겨찾기</div>
-            <SideItem icon="🏠" label="소개" active={active === "about"} onClick={() => openSection("about")} />
-            <SideItem icon="✉️" label="연락처" active={active === "contact"} onClick={() => openSection("contact")} />
+            <SideItem icon="🏠" label="소개" active={win.section === "about"} onClick={() => openSection("about")} />
+            <SideItem icon="✉️" label="연락처" active={win.section === "contact"} onClick={() => openSection("contact")} />
             <div className="side-label" style={{ fontSize: 11, fontWeight: 700, color: "#86868b", padding: "14px 10px 4px", letterSpacing: "0.02em" }}>프로젝트</div>
             {PROJECTS.map((p) => (
-              <SideItem key={p.id} dot={p.accent} label={p.title} active={active === p.id} onClick={() => openSection(p.id)} />
+              <SideItem key={p.id} dot={p.accent} label={p.title} active={win.section === p.id} onClick={() => openSection(p.id)} />
             ))}
           </div>
 
@@ -278,7 +321,7 @@ export default function App() {
             <div className="win-titlebar"
               onPointerDown={onTitleDown} onPointerMove={onTitleMove}
               onPointerUp={onTitleUp} onPointerCancel={onTitleUp}
-              onDoubleClick={(e) => { if (!e.target.closest(".tl")) setWinMax((m) => !m); }}
+              onDoubleClick={(e) => { if (!e.target.closest(".tl")) onMaxToggle(); }}
               style={{
               height: 40, flexShrink: 0, display: "flex", alignItems: "center",
               padding: "0 16px", gap: 14,
@@ -286,19 +329,15 @@ export default function App() {
               background: "rgba(255,255,255,0.02)",
               touchAction: "none", userSelect: "none",
             }}>
-              <TrafficLights
-                onClose={() => setWindowOpen(false)}
-                onMin={() => setWinMin(true)}
-                onMax={() => setWinMax((m) => !m)}
-              />
+              <TrafficLights onClose={onClose} onMin={onMin} onMax={onMaxToggle} />
               <span style={{ fontSize: 13, fontWeight: 600, color: "#c7c7cc" }}>
-                {active === "about" ? "소개" : active === "contact" ? "연락처" : proj?.title}
+                {title}
               </span>
             </div>
 
             {/* 본문 */}
             <div style={{ flex: 1, overflowY: "auto", padding: "36px 40px" }}>
-              {active === "about" && (
+              {win.section === "about" && (
                 <div>
                   <div style={{ font: "500 12px/1 var(--mono)", color: "#E0A020", letterSpacing: "0.08em", marginBottom: 16 }}>
                     {PROFILE.role.toUpperCase()}
@@ -311,7 +350,7 @@ export default function App() {
                 </div>
               )}
 
-              {active === "contact" && (
+              {win.section === "contact" && (
                 <div>
                   <h1 style={{ margin: 0, fontSize: 30, fontWeight: 700, letterSpacing: "-0.02em" }}>연락처</h1>
                   <div style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 16, font: "500 16px/1 var(--mono)" }}>
@@ -349,7 +388,7 @@ export default function App() {
                       };
                       return isPdf ? (
                         <span key={l.label} className="link-row" style={style}
-                          onClick={() => setOpenPdf({ title: proj.title, src: l.href, id: proj.id })}>
+                          onClick={() => onOpenPdf({ title: proj.title, src: l.href, id: proj.id })}>
                           {inner}
                         </span>
                       ) : (
@@ -362,16 +401,20 @@ export default function App() {
             </div>
           </div>
         </div>
-        )}
-      </div>
+  );
+}
 
+// Dock + PDF 오버레이 — App 상태를 프롭으로 받는다
+function DockAndOverlays({ openSection, openPdf, setOpenPdf }) {
+  return (
+    <>
       {/* ── Dock ── */}
       <div style={{
         position: "absolute", bottom: 14, left: "50%", transform: "translateX(-50%)",
         display: "flex", alignItems: "flex-end", gap: 10, padding: "8px 12px",
         background: "rgba(50,48,60,0.45)", backdropFilter: "blur(30px)",
         borderRadius: 18, border: "0.5px solid rgba(255,255,255,0.15)",
-        boxShadow: "0 10px 40px rgba(0,0,0,0.5)", zIndex: 5,
+        boxShadow: "0 10px 40px rgba(0,0,0,0.5)", zIndex: 2000,
       }}>
         <DockIcon label="소개" char="👤" gradient="linear-gradient(160deg,#5a5a66,#33333c)" onClick={() => openSection("about")} />
         {PROJECTS.map((p) => (
@@ -393,7 +436,7 @@ export default function App() {
           onClose={() => setOpenPdf(null)}
         />
       )}
-    </div>
+    </>
   );
 }
 
@@ -429,7 +472,7 @@ function PdfViewer({ title, src, pages, dir, onClose }) {
     <div
       onClick={onClose}
       style={{
-        position: "fixed", inset: 0, zIndex: 50,
+        position: "fixed", inset: 0, zIndex: 3000,
         background: "rgba(0,0,0,0.45)", backdropFilter: "blur(2px)",
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: "48px 20px 100px", animation: "pdfFade .2s ease",
