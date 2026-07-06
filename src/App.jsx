@@ -182,7 +182,7 @@ export default function App() {
   return (
     <div style={{
       "--mono": mono, fontFamily: sans,
-      minHeight: "100vh",
+      height: "100vh",
       // macOS 다크 월페이퍼 느낌
       background: "radial-gradient(ellipse 120% 90% at 50% 0%, #2a2438 0%, #16141f 45%, #0c0b12 100%)",
       display: "flex", flexDirection: "column",
